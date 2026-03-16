@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
@@ -91,10 +91,7 @@ function App() {
   const [view, setView] = useState("dashboard");
   const [tasks, setTasks] = useState(() => { try{return JSON.parse(localStorage.getItem("ac_tasks"))||IT;}catch{return IT;} });
   const [sched, setSched] = useState(() => { try{return JSON.parse(localStorage.getItem("ac_sched"))||IS;}catch{return IS;} });
-  const [objs, setObjs] = useState(() => { try{return JSON.parse(localStorage.getItem("ac_objs"))||[];}catch{return [];} });
-  const [aiLoad, setAiLoad] = useState(false);
-  const [aiCtx, setAiCtx] = useState("");
-  const [aiProj, setAiProj] = useState("Tesis");
+
   const [newTask, setNewTask] = useState("");
   const [newTP, setNewTP] = useState("Tesis");
   const [showAT, setShowAT] = useState(false);
@@ -114,7 +111,6 @@ function App() {
 
   useEffect(()=>{localStorage.setItem("ac_tasks",JSON.stringify(tasks));},[tasks]);
   useEffect(()=>{localStorage.setItem("ac_sched",JSON.stringify(sched));},[sched]);
-  useEffect(()=>{localStorage.setItem("ac_objs",JSON.stringify(objs));},[objs]);
 
   const allT = Object.values(tasks).flat();
   const doneT = allT.filter(t=>t.done).length;
@@ -135,24 +131,11 @@ function App() {
   };
 
   const delEv = (day,id) => setSched(prev=>({...prev,[day]:prev[day].filter(e=>e.id!==id)}));
-
-  const genObjs = async () => {
-    setAiLoad(true);
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`Eres coach académico. El usuario está en posdoctorado y terminando tesis. Proyecto: ${aiProj}. Contexto: ${aiCtx||"ninguno"}. Genera 6 objetivos SMART para esta semana en "${aiProj}" y 3 hábitos de productividad. Responde en español, estructurado y motivador.`}]})
-      });
-      const d = await r.json();
-      const txt = d.content?.map(b=>b.text||"").join("")||"Sin respuesta.";
-      setObjs(prev=>[{id:Date.now(),project:aiProj,content:txt,date:new Date().toLocaleDateString("es-MX")},...prev]);
-    } catch { setObjs(prev=>[{id:Date.now(),project:aiProj,content:"Error de conexión. Intenta de nuevo.",date:new Date().toLocaleDateString("es-MX")},...prev]); }
-    setAiLoad(false);
-  };
+  const delTask = (proj,id) => setTasks(prev=>({...prev,[proj]:prev[proj].filter(t=>t.id!==id)}));
 
   const pc = p=>({alta:"#e94560",media:"#f4a261",baja:"#52b788"}[p]||"#888");
 
-  const NAV=[{id:"dashboard",icon:"⊡",label:"Inicio"},{id:"schedule",icon:"◫",label:"Horario"},{id:"tasks",icon:"◈",label:"Tareas"},{id:"ai",icon:"◉",label:"IA"}];
+  const NAV=[{id:"dashboard",icon:"⊡",label:"Inicio"},{id:"schedule",icon:"◫",label:"Horario"},{id:"tasks",icon:"◈",label:"Tareas"}];
 
   return (
     <div className="app">
@@ -261,10 +244,11 @@ function App() {
               </div>
               <div className="pb" style={{marginBottom:12}}><div style={{height:"100%",background:c.accent,width:`${p}%`,transition:"width 0.5s",borderRadius:2}}/></div>
               {ts.map(t=>(
-                <div key={t.id} className="tr" onClick={()=>toggle(proj,t.id)}>
+                <div key={t.id} className="tr">
                   <input type="checkbox" className="chk" checked={t.done} onChange={()=>toggle(proj,t.id)} style={{accentColor:c.accent}}/>
-                  <span style={{flex:1,fontSize:15,color:t.done?"#444":"#c8c4b9",textDecoration:t.done?"line-through":"none"}}>{t.text}</span>
+                  <span style={{flex:1,fontSize:15,color:t.done?"#444":"#c8c4b9",textDecoration:t.done?"line-through":"none"}} onClick={()=>toggle(proj,t.id)}>{t.text}</span>
                   <div style={{width:7,height:7,borderRadius:"50%",background:pc(t.priority),flexShrink:0}}/>
+                  <button onClick={()=>delTask(proj,t.id)} style={{background:"none",border:"none",color:"#333",fontSize:18,cursor:"pointer",padding:"0 6px",flexShrink:0,lineHeight:1}}>×</button>
                 </div>
               ))}
             </div>;
@@ -279,47 +263,6 @@ function App() {
           </div>
         </div>}
 
-        {/* AI */}
-        {view==="ai" && <div className="fade">
-          <h2 style={{fontSize:24,fontWeight:300,marginBottom:4}}>Objetivos IA</h2>
-          <p className="mono" style={{fontSize:10,color:"#555",letterSpacing:1,marginBottom:18}}>Genera objetivos SMART con IA</p>
-          <div className="card" style={{marginBottom:12}}>
-            <div className="mono" style={{fontSize:9,color:"#555",letterSpacing:2,marginBottom:14}}>CONFIGURAR</div>
-            <div style={{marginBottom:10}}>
-              <label className="lbl">PROYECTO</label>
-              <select className="sel" value={aiProj} onChange={e=>setAiProj(e.target.value)}>
-                <option>Tesis</option><option>Posdoctorado</option><option>Personal</option>
-              </select>
-            </div>
-            <div style={{marginBottom:14}}>
-              <label className="lbl">CONTEXTO (opcional)</label>
-              <textarea className="inp" placeholder="Ej: Debo entregar el cap. 4 esta semana..." value={aiCtx} onChange={e=>setAiCtx(e.target.value)}/>
-            </div>
-            <button className="btn-p" style={{width:"100%"}} onClick={genObjs} disabled={aiLoad}>
-              {aiLoad?"Generando...":"✦ Generar objetivos"}
-            </button>
-          </div>
-          {aiLoad && <div className="card" style={{textAlign:"center",padding:36}}>
-            <div className="mono pulse" style={{fontSize:10,color:"#555",letterSpacing:2}}>PROCESANDO...</div>
-            <div style={{marginTop:14,display:"flex",justifyContent:"center",gap:6}}>
-              {[0,1,2].map(i=><div key={i} style={{width:6,height:6,background:"#e94560",borderRadius:"50%",animation:`pulse 1.4s ease-in-out ${i*0.25}s infinite`}}/>)}
-            </div>
-          </div>}
-          {objs.length===0&&!aiLoad && <div className="card" style={{textAlign:"center",padding:40}}>
-            <div style={{fontSize:32,opacity:0.2,marginBottom:10}}>◈</div>
-            <div className="mono" style={{fontSize:10,color:"#444",letterSpacing:1}}>SIN OBJETIVOS AÚN</div>
-            <div style={{color:"#333",fontSize:13,marginTop:6}}>Configura y genera tu plan semanal</div>
-          </div>}
-          {objs.map(o=>(
-            <div key={o.id} className="card fade" style={{marginBottom:10,borderColor:`${PC[o.project]?.accent}40`}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <span className="tag" style={{background:PC[o.project]?.bg,color:PC[o.project]?.light,border:`1px solid ${PC[o.project]?.accent}40`}}>{o.project}</span>
-                <span className="mono" style={{fontSize:9,color:"#444"}}>{o.date}</span>
-              </div>
-              <div className="ai-txt">{o.content}</div>
-            </div>
-          ))}
-        </div>}
       </div>
 
       {/* Nav */}
