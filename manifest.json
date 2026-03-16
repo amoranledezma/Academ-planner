@@ -1,0 +1,14 @@
+{
+  "short_name": "Academ",
+  "name": "Academ Planner",
+  "description": "Planner académico para posdoctorado y tesis",
+  "icons": [
+    { "src": "https://via.placeholder.com/192/e94560/ffffff?text=A", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "https://via.placeholder.com/512/e94560/ffffff?text=A", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0a0a0f",
+  "background_color": "#0a0a0f"
+}

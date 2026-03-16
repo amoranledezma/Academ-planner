@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <meta name="theme-color" content="#0a0a0f"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Academ"/>
+  <title>Academ Planner</title>
+  <link rel="manifest" href="manifest.json"/>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    body{background:#0a0a0f;overscroll-behavior:none;font-family:'Georgia',serif;}
+    @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap');
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const DAYS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const HOURS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00"];
+const PC = {
+  "Tesis":        {bg:"#1a1a2e",accent:"#e94560",light:"#ff6b8a"},
+  "Posdoctorado": {bg:"#0d2137",accent:"#00b4d8",light:"#48cae4"},
+  "Personal":     {bg:"#1a2e1a",accent:"#52b788",light:"#74c69d"},
+};
+const IT = {
+  "Tesis":[
+    {id:1,text:"Revisar capítulo 3 - Metodología",done:false,priority:"alta"},
+    {id:2,text:"Responder comentarios del asesor",done:false,priority:"alta"},
+    {id:3,text:"Formatear referencias bibliográficas",done:true,priority:"media"},
+  ],
+  "Posdoctorado":[
+    {id:4,text:"Leer artículos del estado del arte",done:false,priority:"media"},
+    {id:5,text:"Preparar presentación de bienvenida",done:false,priority:"alta"},
+  ],
+  "Personal":[{id:6,text:"Hacer ejercicio 3x por semana",done:false,priority:"baja"}],
+};
+const IS = {
+  "Lunes":[{id:"s1",hour:"09:00",project:"Tesis",task:"Escritura - Capítulo 3"},{id:"s2",hour:"14:00",project:"Posdoctorado",task:"Revisión de literatura"}],
+  "Martes":[{id:"s3",hour:"10:00",project:"Tesis",task:"Reunión con asesor"},{id:"s4",hour:"15:00",project:"Posdoctorado",task:"Lectura de artículos"}],
+  "Miércoles":[{id:"s5",hour:"09:00",project:"Tesis",task:"Edición y correcciones"}],
+  "Jueves":[{id:"s6",hour:"11:00",project:"Posdoctorado",task:"Preparar presentación"},{id:"s7",hour:"16:00",project:"Personal",task:"Ejercicio"}],
+  "Viernes":[{id:"s8",hour:"09:00",project:"Tesis",task:"Revisión final semanal"}],
+  "Sábado":[],"Domingo":[],
+};
+
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap');
+  .app{font-family:'Crimson Pro','Georgia',serif;background:#0a0a0f;min-height:100vh;min-height:100dvh;color:#e8e4d9;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative;}
+  ::-webkit-scrollbar{width:3px;} ::-webkit-scrollbar-thumb{background:#2a2a35;border-radius:2px;}
+  .card{background:#111117;border:1px solid #1e1e28;border-radius:3px;padding:16px;}
+  .btn-p{background:#e94560;color:#fff;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1px;padding:10px 18px;text-transform:uppercase;border-radius:2px;}
+  .btn-p:active{background:#ff6b8a;}
+  .btn-g{background:none;border:1px solid #2a2a35;color:#888;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1px;padding:9px 16px;text-transform:uppercase;border-radius:2px;}
+  .btn-g:active{border-color:#555;color:#e8e4d9;}
+  .inp{background:#0d0d14;border:1px solid #2a2a35;color:#e8e4d9;font-family:'Crimson Pro',serif;font-size:16px;padding:10px 12px;width:100%;outline:none;border-radius:2px;}
+  .inp:focus{border-color:#e94560;}
+  .sel{background:#0d0d14;border:1px solid #2a2a35;color:#e8e4d9;font-family:'Space Mono',monospace;font-size:11px;padding:10px 12px;width:100%;outline:none;border-radius:2px;cursor:pointer;}
+  .tr{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #1a1a22;cursor:pointer;border-radius:2px;}
+  .tr:last-child{border-bottom:none;} .tr:active{background:#13131a;}
+  .tag{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 7px;border-radius:1px;text-transform:uppercase;}
+  .chk{width:18px;height:18px;cursor:pointer;accent-color:#e94560;flex-shrink:0;}
+  .pb{height:3px;background:#1a1a22;border-radius:2px;overflow:hidden;}
+  .ai-txt{font-size:15px;line-height:1.75;color:#c8c4b9;white-space:pre-wrap;}
+  .fade{animation:fadeIn 0.3s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .pulse{animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  .day-btn{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;padding:6px 10px;background:none;border:1px solid #1e1e28;color:#555;cursor:pointer;border-radius:2px;text-transform:uppercase;white-space:nowrap;}
+  .day-btn.active{border-color:#e94560;color:#e8e4d9;background:#1a0a10;}
+  .day-btn:active{opacity:0.7;}
+  .nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:8px 0;flex:1;}
+  .nav-item:active{opacity:0.6;}
+  textarea.inp{resize:none;min-height:72px;}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:flex-end;justify-content:center;z-index:100;backdrop-filter:blur(6px);}
+  .modal{background:#111117;border:1px solid #2a2a35;border-radius:6px 6px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+  .drag-h{width:36px;height:4px;background:#2a2a35;border-radius:2px;margin:0 auto 20px;}
+  .lbl{font-family:'Space Mono',monospace;font-size:9px;color:#666;display:block;margin-bottom:5px;}
+  .mono{font-family:'Space Mono',monospace;}
+`;
+
+function App() {
+  const [view, setView] = useState("dashboard");
+  const [tasks, setTasks] = useState(() => { try{return JSON.parse(localStorage.getItem("ac_tasks"))||IT;}catch{return IT;} });
+  const [sched, setSched] = useState(() => { try{return JSON.parse(localStorage.getItem("ac_sched"))||IS;}catch{return IS;} });
+  const [objs, setObjs] = useState(() => { try{return JSON.parse(localStorage.getItem("ac_objs"))||[];}catch{return [];} });
+  const [aiLoad, setAiLoad] = useState(false);
+  const [aiCtx, setAiCtx] = useState("");
+  const [aiProj, setAiProj] = useState("Tesis");
+  const [newTask, setNewTask] = useState("");
+  const [newTP, setNewTP] = useState("Tesis");
+  const [showAT, setShowAT] = useState(false);
+  const [showAE, setShowAE] = useState(false);
+  const [newEv, setNewEv] = useState({day:"Lunes",hour:"09:00",project:"Tesis",task:""});
+  const [week, setWeek] = useState("");
+  const [selDay, setSelDay] = useState("Lunes");
+
+  useEffect(() => {
+    const now = new Date();
+    const s = new Date(now); s.setDate(now.getDate()-now.getDay()+1);
+    const e = new Date(s); e.setDate(s.getDate()+6);
+    const f = d => d.toLocaleDateString("es-MX",{day:"numeric",month:"short"});
+    setWeek(`${f(s)} – ${f(e)}`);
+    const d = now.getDay(); setSelDay(DAYS[d===0?6:d-1]);
+  },[]);
+
+  useEffect(()=>{localStorage.setItem("ac_tasks",JSON.stringify(tasks));},[tasks]);
+  useEffect(()=>{localStorage.setItem("ac_sched",JSON.stringify(sched));},[sched]);
+  useEffect(()=>{localStorage.setItem("ac_objs",JSON.stringify(objs));},[objs]);
+
+  const allT = Object.values(tasks).flat();
+  const doneT = allT.filter(t=>t.done).length;
+  const pct = allT.length>0?Math.round((doneT/allT.length)*100):0;
+
+  const toggle = (p,id) => setTasks(prev=>({...prev,[p]:prev[p].map(t=>t.id===id?{...t,done:!t.done}:t)}));
+
+  const addTask = () => {
+    if(!newTask.trim())return;
+    setTasks(prev=>({...prev,[newTP]:[...prev[newTP],{id:Date.now(),text:newTask,done:false,priority:"media"}]}));
+    setNewTask(""); setShowAT(false);
+  };
+
+  const addEv = () => {
+    if(!newEv.task.trim())return;
+    setSched(prev=>({...prev,[newEv.day]:[...(prev[newEv.day]||[]),{id:"s"+Date.now(),...newEv}].sort((a,b)=>a.hour.localeCompare(b.hour))}));
+    setNewEv({day:"Lunes",hour:"09:00",project:"Tesis",task:""}); setShowAE(false);
+  };
+
+  const delEv = (day,id) => setSched(prev=>({...prev,[day]:prev[day].filter(e=>e.id!==id)}));
+
+  const genObjs = async () => {
+    setAiLoad(true);
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`Eres coach académico. El usuario está en posdoctorado y terminando tesis. Proyecto: ${aiProj}. Contexto: ${aiCtx||"ninguno"}. Genera 6 objetivos SMART para esta semana en "${aiProj}" y 3 hábitos de productividad. Responde en español, estructurado y motivador.`}]})
+      });
+      const d = await r.json();
+      const txt = d.content?.map(b=>b.text||"").join("")||"Sin respuesta.";
+      setObjs(prev=>[{id:Date.now(),project:aiProj,content:txt,date:new Date().toLocaleDateString("es-MX")},...prev]);
+    } catch { setObjs(prev=>[{id:Date.now(),project:aiProj,content:"Error de conexión. Intenta de nuevo.",date:new Date().toLocaleDateString("es-MX")},...prev]); }
+    setAiLoad(false);
+  };
+
+  const pc = p=>({alta:"#e94560",media:"#f4a261",baja:"#52b788"}[p]||"#888");
+
+  const NAV=[{id:"dashboard",icon:"⊡",label:"Inicio"},{id:"schedule",icon:"◫",label:"Horario"},{id:"tasks",icon:"◈",label:"Tareas"},{id:"ai",icon:"◉",label:"IA"}];
+
+  return (
+    <div className="app">
+      <style>{css}</style>
+
+      {/* Header */}
+      <header style={{padding:"14px 16px 10px",borderBottom:"1px solid #1a1a22",background:"rgba(10,10,15,0.97)",position:"sticky",top:0,zIndex:50}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div className="mono" style={{fontSize:14,fontWeight:700,letterSpacing:3,color:"#e94560"}}>ACADEM</div>
+          <div className="mono" style={{fontSize:9,color:"#444",letterSpacing:1}}>{week}</div>
+        </div>
+      </header>
+
+      <div style={{flex:1,overflowY:"auto",padding:"16px 14px 90px"}}>
+
+        {/* DASHBOARD */}
+        {view==="dashboard" && <div className="fade">
+          <h1 style={{fontSize:26,fontWeight:300,marginBottom:4}}>Bienvenido</h1>
+          <p className="mono" style={{fontSize:10,color:"#555",letterSpacing:1,marginBottom:18}}>Tu semana en un vistazo</p>
+
+          <div className="card" style={{marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:10}}>
+              <div>
+                <div className="mono" style={{fontSize:9,color:"#555",letterSpacing:2,marginBottom:4}}>PROGRESO SEMANAL</div>
+                <div style={{fontSize:38,fontWeight:300,color:"#e94560",lineHeight:1}}>{pct}%</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div className="mono" style={{fontSize:9,color:"#555"}}>{doneT}/{allT.length} tareas</div>
+                <div className="mono" style={{fontSize:9,color:"#555",marginTop:3}}>2 proyectos activos</div>
+              </div>
+            </div>
+            <div className="pb"><div style={{height:"100%",background:"linear-gradient(90deg,#e94560,#ff6b8a)",width:`${pct}%`,transition:"width 0.6s",borderRadius:2}}/></div>
+          </div>
+
+          <div className="card" style={{marginBottom:10}}>
+            <div className="mono" style={{fontSize:9,color:"#555",letterSpacing:2,marginBottom:12}}>TAREAS PRIORITARIAS</div>
+            {Object.entries(tasks).flatMap(([p,ts])=>ts.filter(t=>!t.done&&t.priority==="alta").map(t=>({...t,p}))).slice(0,4).map(t=>(
+              <div key={t.id} className="tr" onClick={()=>toggle(t.p,t.id)}>
+                <input type="checkbox" className="chk" checked={t.done} onChange={()=>toggle(t.p,t.id)}/>
+                <span style={{flex:1,fontSize:15,color:"#c8c4b9"}}>{t.text}</span>
+                <span className="tag" style={{background:PC[t.p]?.bg,color:PC[t.p]?.light,border:`1px solid ${PC[t.p]?.accent}40`}}>{t.p.slice(0,3)}</span>
+              </div>
+            ))}
+            {allT.filter(t=>!t.done&&t.priority==="alta").length===0 && <p className="mono" style={{color:"#444",fontSize:11}}>Sin tareas prioritarias ✓</p>}
+          </div>
+
+          <div className="card">
+            <div className="mono" style={{fontSize:9,color:"#555",letterSpacing:2,marginBottom:12}}>PRÓXIMOS EVENTOS</div>
+            {Object.entries(sched).flatMap(([day,evs])=>evs.map(e=>({...e,day}))).slice(0,4).map(e=>(
+              <div key={e.id} style={{display:"flex",gap:10,alignItems:"center",padding:"9px 0",borderBottom:"1px solid #1a1a22"}}>
+                <div className="mono" style={{fontSize:9,color:"#555",width:42,flexShrink:0}}>{e.hour}</div>
+                <div style={{width:2,height:30,background:PC[e.project]?.accent,borderRadius:2,flexShrink:0}}/>
+                <div>
+                  <div style={{fontSize:14,color:"#c8c4b9"}}>{e.task}</div>
+                  <div className="mono" style={{fontSize:9,color:"#555",marginTop:1}}>{e.day}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* SCHEDULE */}
+        {view==="schedule" && <div className="fade">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <h2 style={{fontSize:24,fontWeight:300}}>Horario</h2>
+            <button className="btn-p" style={{fontSize:9,padding:"8px 12px"}} onClick={()=>setShowAE(true)}>+ Evento</button>
+          </div>
+          <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:16,paddingBottom:4}}>
+            {DAYS.map(d=><button key={d} className={`day-btn${selDay===d?" active":""}`} onClick={()=>setSelDay(d)}>{d.slice(0,3)}</button>)}
+          </div>
+          <div className="mono" style={{fontSize:10,color:"#555",letterSpacing:2,marginBottom:10}}>{selDay.toUpperCase()}</div>
+          {(sched[selDay]||[]).length===0 && <div className="card" style={{textAlign:"center",padding:32}}><div className="mono" style={{color:"#333",fontSize:11}}>Sin eventos · Día libre</div></div>}
+          {(sched[selDay]||[]).map(e=>(
+            <div key={e.id} className="card" style={{marginBottom:8,borderColor:`${PC[e.project]?.accent}30`,display:"flex",alignItems:"center",gap:12}}>
+              <div className="mono" style={{fontSize:12,color:"#555",flexShrink:0}}>{e.hour}</div>
+              <div style={{width:3,height:40,background:PC[e.project]?.accent,borderRadius:2,flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:15,color:"#e8e4d9"}}>{e.task}</div>
+                <div className="mono" style={{fontSize:9,color:PC[e.project]?.light,marginTop:2}}>{e.project}</div>
+              </div>
+              <button onClick={()=>delEv(selDay,e.id)} style={{background:"none",border:"none",color:"#e94560",fontSize:20,cursor:"pointer",padding:"4px 8px",flexShrink:0}}>×</button>
+            </div>
+          ))}
+          <div style={{display:"flex",gap:14,marginTop:16}}>
+            {Object.entries(PC).map(([p,c])=>(
+              <div key={p} style={{display:"flex",alignItems:"center",gap:5}}>
+                <div style={{width:8,height:8,background:c.accent,borderRadius:1}}/>
+                <span className="mono" style={{fontSize:9,color:"#555"}}>{p}</span>
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* TASKS */}
+        {view==="tasks" && <div className="fade">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <h2 style={{fontSize:24,fontWeight:300}}>Tareas</h2>
+            <button className="btn-p" style={{fontSize:9,padding:"8px 12px"}} onClick={()=>setShowAT(true)}>+ Tarea</button>
+          </div>
+          {Object.entries(tasks).map(([proj,ts])=>{
+            const c=PC[proj]; const d=ts.filter(t=>t.done).length; const p=ts.length>0?Math.round((d/ts.length)*100):0;
+            return <div key={proj} className="card" style={{marginBottom:10,borderColor:`${c.accent}30`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontSize:17,fontWeight:600,color:c.light}}>{proj}</div>
+                <div className="mono" style={{fontSize:9,color:"#555"}}>{d}/{ts.length} · {p}%</div>
+              </div>
+              <div className="pb" style={{marginBottom:12}}><div style={{height:"100%",background:c.accent,width:`${p}%`,transition:"width 0.5s",borderRadius:2}}/></div>
+              {ts.map(t=>(
+                <div key={t.id} className="tr" onClick={()=>toggle(proj,t.id)}>
+                  <input type="checkbox" className="chk" checked={t.done} onChange={()=>toggle(proj,t.id)} style={{accentColor:c.accent}}/>
+                  <span style={{flex:1,fontSize:15,color:t.done?"#444":"#c8c4b9",textDecoration:t.done?"line-through":"none"}}>{t.text}</span>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:pc(t.priority),flexShrink:0}}/>
+                </div>
+              ))}
+            </div>;
+          })}
+          <div style={{display:"flex",gap:14,marginTop:8}}>
+            {[["alta","#e94560"],["media","#f4a261"],["baja","#52b788"]].map(([p,c])=>(
+              <div key={p} style={{display:"flex",alignItems:"center",gap:5}}>
+                <div style={{width:7,height:7,borderRadius:"50%",background:c}}/>
+                <span className="mono" style={{fontSize:9,color:"#555"}}>{p}</span>
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* AI */}
+        {view==="ai" && <div className="fade">
+          <h2 style={{fontSize:24,fontWeight:300,marginBottom:4}}>Objetivos IA</h2>
+          <p className="mono" style={{fontSize:10,color:"#555",letterSpacing:1,marginBottom:18}}>Genera objetivos SMART con IA</p>
+          <div className="card" style={{marginBottom:12}}>
+            <div className="mono" style={{fontSize:9,color:"#555",letterSpacing:2,marginBottom:14}}>CONFIGURAR</div>
+            <div style={{marginBottom:10}}>
+              <label className="lbl">PROYECTO</label>
+              <select className="sel" value={aiProj} onChange={e=>setAiProj(e.target.value)}>
+                <option>Tesis</option><option>Posdoctorado</option><option>Personal</option>
+              </select>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label className="lbl">CONTEXTO (opcional)</label>
+              <textarea className="inp" placeholder="Ej: Debo entregar el cap. 4 esta semana..." value={aiCtx} onChange={e=>setAiCtx(e.target.value)}/>
+            </div>
+            <button className="btn-p" style={{width:"100%"}} onClick={genObjs} disabled={aiLoad}>
+              {aiLoad?"Generando...":"✦ Generar objetivos"}
+            </button>
+          </div>
+          {aiLoad && <div className="card" style={{textAlign:"center",padding:36}}>
+            <div className="mono pulse" style={{fontSize:10,color:"#555",letterSpacing:2}}>PROCESANDO...</div>
+            <div style={{marginTop:14,display:"flex",justifyContent:"center",gap:6}}>
+              {[0,1,2].map(i=><div key={i} style={{width:6,height:6,background:"#e94560",borderRadius:"50%",animation:`pulse 1.4s ease-in-out ${i*0.25}s infinite`}}/>)}
+            </div>
+          </div>}
+          {objs.length===0&&!aiLoad && <div className="card" style={{textAlign:"center",padding:40}}>
+            <div style={{fontSize:32,opacity:0.2,marginBottom:10}}>◈</div>
+            <div className="mono" style={{fontSize:10,color:"#444",letterSpacing:1}}>SIN OBJETIVOS AÚN</div>
+            <div style={{color:"#333",fontSize:13,marginTop:6}}>Configura y genera tu plan semanal</div>
+          </div>}
+          {objs.map(o=>(
+            <div key={o.id} className="card fade" style={{marginBottom:10,borderColor:`${PC[o.project]?.accent}40`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <span className="tag" style={{background:PC[o.project]?.bg,color:PC[o.project]?.light,border:`1px solid ${PC[o.project]?.accent}40`}}>{o.project}</span>
+                <span className="mono" style={{fontSize:9,color:"#444"}}>{o.date}</span>
+              </div>
+              <div className="ai-txt">{o.content}</div>
+            </div>
+          ))}
+        </div>}
+      </div>
+
+      {/* Nav */}
+      <nav style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"rgba(10,10,15,0.97)",borderTop:"1px solid #1a1a22",display:"flex",backdropFilter:"blur(8px)",zIndex:50,paddingBottom:"env(safe-area-inset-bottom)"}}>
+        {NAV.map(n=>(
+          <button key={n.id} className="nav-item" onClick={()=>setView(n.id)}>
+            <span style={{fontSize:18,lineHeight:1,color:view===n.id?"#e94560":"#444"}}>{n.icon}</span>
+            <span className="mono" style={{fontSize:8,letterSpacing:1,color:view===n.id?"#e8e4d9":"#444",textTransform:"uppercase"}}>{n.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Modal Tarea */}
+      {showAT && <div className="modal-bg" onClick={()=>setShowAT(false)}>
+        <div className="modal fade" onClick={e=>e.stopPropagation()}>
+          <div className="drag-h"/>
+          <div className="mono" style={{fontSize:11,letterSpacing:2,color:"#555",marginBottom:18}}>NUEVA TAREA</div>
+          <input className="inp" placeholder="Descripción..." value={newTask} onChange={e=>setNewTask(e.target.value)} style={{marginBottom:10}} autoFocus/>
+          <select className="sel" style={{marginBottom:18}} value={newTP} onChange={e=>setNewTP(e.target.value)}>
+            <option>Tesis</option><option>Posdoctorado</option><option>Personal</option>
+          </select>
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn-p" style={{flex:1}} onClick={addTask}>Agregar</button>
+            <button className="btn-g" onClick={()=>setShowAT(false)}>Cancelar</button>
+          </div>
+        </div>
+      </div>}
+
+      {/* Modal Evento */}
+      {showAE && <div className="modal-bg" onClick={()=>setShowAE(false)}>
+        <div className="modal fade" onClick={e=>e.stopPropagation()}>
+          <div className="drag-h"/>
+          <div className="mono" style={{fontSize:11,letterSpacing:2,color:"#555",marginBottom:18}}>NUEVO EVENTO</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <div><label className="lbl">DÍA</label><select className="sel" value={newEv.day} onChange={e=>setNewEv(p=>({...p,day:e.target.value}))}>{DAYS.map(d=><option key={d}>{d}</option>)}</select></div>
+            <div><label className="lbl">HORA</label><select className="sel" value={newEv.hour} onChange={e=>setNewEv(p=>({...p,hour:e.target.value}))}>{HOURS.map(h=><option key={h}>{h}</option>)}</select></div>
+          </div>
+          <div style={{marginBottom:10}}><label className="lbl">PROYECTO</label><select className="sel" value={newEv.project} onChange={e=>setNewEv(p=>({...p,project:e.target.value}))}><option>Tesis</option><option>Posdoctorado</option><option>Personal</option></select></div>
+          <div style={{marginBottom:18}}><label className="lbl">DESCRIPCIÓN</label><input className="inp" placeholder="Ej: Escritura - Metodología" value={newEv.task} onChange={e=>setNewEv(p=>({...p,task:e.target.value}))} autoFocus/></div>
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn-p" style={{flex:1}} onClick={addEv}>Agregar</button>
+            <button className="btn-g" onClick={()=>setShowAE(false)}>Cancelar</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
